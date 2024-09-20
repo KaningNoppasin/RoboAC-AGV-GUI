@@ -7,6 +7,7 @@ from PyQt5.QtCore import Qt
 class MyApp(QWidget):
     def __init__(self):
         super().__init__()
+
         self.buttons = [
             ['Set Up env', self.handleSetUpENV],
             ['RViz', self.handleRViz],
@@ -19,6 +20,7 @@ class MyApp(QWidget):
 
         self.dataFromLayout2 = []
         self.buttonLayoutFromLayout2 = []
+        self.process = ""
         # Set up the window
         self.setWindowTitle('RoboAC Controller')
         # self.setGeometry(1000, 1000, 300, 200)
@@ -222,14 +224,22 @@ class MyApp(QWidget):
         self.dataFromLayout2.append([xPosition, yPosition, thetaDegree])
         self.buttonLayoutFromLayout2.append(horizontal_layout2)
 
+    def getRawStringCommand(self, x, y, theta):
+        position = "{ x: " + str(x) +", y : " + str(y) + ", theta : " + str(theta) + "}"
+        command = f"ros2 topic pub --once /Ctrl_val geometry_msgs/msg/Pose2D '{position}'"
+        return command
 
     # Event handler for button click
     def handleMoveToPositionByIndex(self, index):
         try:
+            if self.process:
+                self.process.terminate()
+                self.process.wait()
             text = f"Move to Position{index}\t"
             (xPos, yPos, th) = self.dataFromLayout2[index - 1]
             text += f"x{index}: {xPos.text()} y{index}: {yPos.text()} theta{index}: {th.text()}\n"
             self.label.setText(text)
+            self.process = subprocess.Popen(self.getRawStringCommand( float(xPos.text()), float(yPos.text()), float(th.text())), shell=True, executable='/bin/bash')
         except:
             self.label.setText(f'Input is required!')
 
@@ -264,10 +274,20 @@ class MyApp(QWidget):
         # self.label.setText(f'{result.stdout} , {result.stderr}')
 
     def handleRViz(self):
-        self.label.setText('RViz')
+        try:
+            self.label.setText('RViz')
+            # result = subprocess.run('rviz2', shell=True, capture_output=True, text=True)
+            # result = subprocess.run('rviz2', shell=True, capture_output=False, text=True)
+            # subprocess.run(['rviz2'])
+            process = subprocess.Popen(['rviz2'])
+            # self.label.setText(f'{result.stdout} , {result.stderr}')
+        except:
+            self.label.setText('RViz Eror')
 
     def handleOdometry(self):
         self.label.setText('Odometry')
+        result = subprocess.run('ros2 topic echo /Odom_pub', shell=True, capture_output=True, text=True)
+        self.label.setText(f'{result.stdout} , {result.stderr}')
 
     def handleMoveToAllPosition(self):
         try:
